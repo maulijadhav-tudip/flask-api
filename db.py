@@ -39,8 +39,17 @@ def get_skills(email):
 def save_rating(skill_id,user_id,rating):
     conn = open_connection()
     with conn.cursor() as cursor:
-        sql = "insert into UsersSkillDB(user_id,skill_id,skill_rating) values((select user_id from Users where user_id = %s),(select skill_id from Taxonomy where skill_id = %s),%s)"
-        val = (user_id,skill_id,rating)
+        query = "select * from UsersSkillDB where user_id=%s and skill_id=%s;"
+        val = (user_id,skill_id)
+        rst = cursor.execute(query,val)
+        if rst > 0:
+            sql = "update UsersSkillDB set skill_rating  =%s where user_id=%s and skill_id=%s;"
+            val = (rating,user_id,skill_id)
+
+        else:
+            sql = "insert into UsersSkillDB(user_id,skill_id,skill_rating) values ((select user_id from Users where user_id=%s),(select skill_id from Taxonomy where skill_id=%s),%s);"
+            val = (user_id,skill_id,rating)
+
         result = cursor.execute(sql,val)
         conn.commit()
     conn.close()
@@ -81,13 +90,14 @@ def get_self_attest_count_per_day(user_id):
     conn.close()
     return got_skills
 
+
 def set_last_trigger_time(user_id, timestamp):
     conn = open_connection()
     with conn.cursor() as cursor:
         rst = cursor.execute("select * from Survey where user_id=%s", user_id)
         if rst > 0:
             sql = "update Survey set trigger_count  = ((select trigger_count from (select * from Survey where user_id = %s) as Survey_new) + 1), ext_triggered = %s where  user_id = %s;"
-            val = (user_id, timestamp, user_id) 
+            val = (user_id, timestamp, user_id)
 
         else:
             sql = "insert into Survey values (%s,%s,null,null,1);"
@@ -96,3 +106,36 @@ def set_last_trigger_time(user_id, timestamp):
         result = cursor.execute(sql,val)
         conn.commit()
     conn.close()
+
+
+def log_extension_closed_time(user_id, timestamp):
+    conn = open_connection()
+    with conn.cursor() as cursor:
+        sql = "update Survey set ext_closed = %s where  user_id = %s;"
+        val = (timestamp, user_id)
+        result = cursor.execute(sql,val)
+        conn.commit()
+    conn.close()
+
+
+def log_extension_postponed_time(user_id, timestamp):
+    conn = open_connection()
+    with conn.cursor() as cursor:
+        sql = "update Survey set ext_postponed = %s where  user_id = %s;"
+        val = (timestamp, user_id)
+        result = cursor.execute(sql, val)
+        conn.commit()
+    conn.close()
+
+
+def get_survey_data(user_id):
+    conn = open_connection()
+    with conn.cursor() as cursor:
+        result = cursor.execute('select * from Survey where user_id = %s ;', user_id)
+        skills = cursor.fetchall()
+        if result > 0:
+            got_skills = jsonify(skills)
+        else:
+            got_skills = 'No self-attested data available in DB'
+    conn.close()
+    return got_skills
