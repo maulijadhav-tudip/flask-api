@@ -1,16 +1,20 @@
 """Main file for Skills-db backend."""
 
-from db import get_dashboard
-from db import get_progress_count
 from db import get_skills
-from db import get_survey_data
+from db import save_rating
+from db import get_dashboard
+from db import set_skill_priority
+from db import get_rated_skill_count
+from db import set_last_trigger_time
 from db import log_extension_closed_time
 from db import log_extension_postponed_time
-from db import save_rating
-from db import set_last_trigger_time
-from db import set_skill_priority
+from db import get_survey_data
 from db import update_prompting
+from db import get_triggered_count_per_day
 from db import check_login
+from db import delete_todays_skills_data
+from db import delete_all_user_data_with_logs
+from db import delete_all_user_data_without_logs
 from flask import request
 from flask import Flask
 from flask import jsonify
@@ -78,12 +82,12 @@ def update_skill_priority():
         return error_msg
 
 
-@app.route('/get-progress-count', methods=['GET'])
-def progress_skill_count():
+@app.route('/get-rated-skill-count', methods=['GET'])
+def rated_skill_count():
     """Endpoint to retrieve count of rated skill, unrated skill and expired skill from database."""
     if request.args:
         user_id = request.args.get('userId')
-        skills_count = get_progress_count(user_id)
+        skills_count = get_rated_skill_count(user_id)
     else:
         skills_count = 'Invalid parameters'
     return skills_count
@@ -171,10 +175,32 @@ def update_skill_priority_per_day():
 
 @app.route('/delete-user-data', methods=['GET'])
 def delete_history():
-    """Endpoint to delete user related data from database."""
+    """Endpoint to delete today's user data without logs from database."""
     if request.args:
         user_id = request.args.get('userId')
-        return delete_user_data(user_id)
+        return delete_todays_skills_data(user_id)
+    else:
+        error_msg = 'Invalid parameters'
+        return error_msg
+
+
+@app.route('/delete-all-user-data-with-logs', methods=['GET'])
+def delete_user_data_with_logs():
+    """Endpoint to delete all user data with logs from database."""
+    if request.args:
+        user_id = request.args.get('userId')
+        return delete_all_user_data_with_logs(user_id)
+    else:
+        error_msg = 'Invalid parameters'
+        return error_msg
+
+
+@app.route('/delete-all-user-data-without-logs', methods=['GET'])
+def delete_data_without_logs():
+    """Endpoint to delete all user data without logs from database."""
+    if request.args:
+        user_id = request.args.get('userId')
+        return delete_all_user_data_without_logs(user_id)
     else:
         error_msg = 'Invalid parameters'
         return error_msg
@@ -182,4 +208,3 @@ def delete_history():
 
 if __name__ == '__main__':
     app.run()
-

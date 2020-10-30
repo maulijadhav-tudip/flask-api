@@ -2,7 +2,7 @@
 
 import os
 import pymysql
-FROM flask import jsonify
+from flask import jsonify
 
 db_user = os.environ.get('CLOUD_SQL_USERNAME')
 db_password = os.environ.get('CLOUD_SQL_PASSWORD')
@@ -34,7 +34,7 @@ def check_login(email_id):
         val = (email_id)
         rst = cursor.execute(query, val)
         if rst > 0:
-           return True
+            return True
         else:
             name = email_id.split("@")[0]
             role = 'CE'
@@ -48,7 +48,7 @@ def check_login(email_id):
             result1 = cursor.execute(query2, val1)
             conn.commit()
             return True
-    conn.close()
+        conn.close()
 
 
 def get_skills(email):
@@ -101,7 +101,7 @@ def set_skill_priority(user_id, skill_id):
     conn.close()
 
 
-def get_progress_count(user_id):
+def get_rated_skill_count(user_id):
     """Retrieve count of rated skills, unrated skill and expired skill from database."""
     conn = open_connection()
     with conn.cursor() as cursor:
@@ -133,9 +133,9 @@ def log_extension_closed_time(user_id, timestamp):
     """Persist extension closed time to database."""
     conn = open_connection()
     with conn.cursor() as cursor:
-        sql = "UPDATE Survey SET ext_closed = %s WHERE user_id = (SELECT user_id FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new) AND ext_triggered = (SELECT ext_triggered FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new);"
+        query = "UPDATE Survey SET ext_closed = %s WHERE user_id = (SELECT user_id FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new) AND ext_triggered = (SELECT ext_triggered FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new);"
         val = (timestamp, user_id, user_id)
-        result = cursor.execute(sql, val)
+        result = cursor.execute(query, val)
         conn.commit()
     conn.close()
 
@@ -144,9 +144,9 @@ def log_extension_postponed_time(user_id, timestamp, postpone_option):
     """Persist extension postponed time to database."""
     conn = open_connection()
     with conn.cursor() as cursor:
-        sql = "UPDATE Survey SET ext_postponed = %s ,postpone_option = %s WHERE user_id = (SELECT user_id FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new) AND ext_triggered = (SELECT ext_triggered FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new);"
+        query = "UPDATE Survey SET ext_postponed = %s ,postpone_option = %s WHERE user_id = (SELECT user_id FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new) AND ext_triggered = (SELECT ext_triggered FROM (SELECT * FROM Survey WHERE user_id = %s ORDER BY ext_triggered DESC limit 1) as Survey_new);"
         val = (timestamp, postpone_option, user_id, user_id)
-        result = cursor.execute(sql, val)
+        result = cursor.execute(query, val)
         conn.commit()
     conn.close()
 
@@ -188,16 +188,50 @@ def get_triggered_count_per_day(email):
     return trigger_count
 
 
-def delete_user_data(user_id):
-    """Delete user related data from database."""
+def delete_todays_skills_data(user_id):
+    """Delete Today's user data without the survey logs"""
     conn = open_connection()
     with conn.cursor() as cursor:
-        query1 = 'DELETE UsersSkillDB,Survey FROM UsersSkillDB INNER JOIN Survey ON UsersSkillDB.user_id=Survey.user_id WHERE Survey.user_id=%s'
-        result1 = cursor.execute(query1, user_id)
+        query1 = 'DELETE FROM UsersSkillDB WHERE user_id=%s AND date(rated_at) = CURDATE()'
+        val1 = (user_id)
+        result1 = cursor.execute(query1, val1)
+        query2 = 'UPDATE UserSkillsPrioDB SET priority_rating=NULL, updated_at=NULL where  user_id = %s and date(updated_at) = CURDATE()'
+        val2 = (user_id)
+        result2 = cursor.execute(query2, val2)
+        conn.commit()
+    conn.close()
+    return 'Data deleted for today'
+
+
+def delete_all_user_data_with_logs(user_id):
+    """Delete all the user data including the survey logs"""
+    conn = open_connection()
+    with conn.cursor() as cursor:
+        query1 = 'DELETE FROM UsersSkillDB WHERE user_id=%s'
+        val1 = (user_id)
+        result1 = cursor.execute(query1, val1)
+        query2 = 'DELETE FROM Survey WHERE user_id=%s'
+        val2 = (user_id)
+        result2 = cursor.execute(query2, val2)
+        query3 = 'UPDATE UserSkillsPrioDB SET priority_rating=NULL, updated_at=NULL WHERE  user_id = %s'
+        val3 = (user_id)
+        result3 = cursor.execute(query3, val3)
+        conn.commit()
+    conn.close()
+    return 'All data deleted successfully with interaction logs.'
+
+
+def delete_all_user_data_without_logs(user_id):
+    """Delete all the user data without the survey logs"""
+    conn = open_connection()
+    with conn.cursor() as cursor:
+        query1 = 'DELETE FROM UsersSkillDB WHERE user_id=%s'
+        val1 = (user_id)
+        result1 = cursor.execute(query1, val1)
         query2 = 'UPDATE UserSkillsPrioDB SET priority_rating=NULL, updated_at=NULL WHERE  user_id = %s'
-        result2 = cursor.execute(query2, user_id)
+        val2 = (user_id)
+        result2 = cursor.execute(query2, val2)
         conn.commit()
     conn.close()
     return 'Data deleted successfully'
-
 
